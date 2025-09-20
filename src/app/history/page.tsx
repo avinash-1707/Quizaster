@@ -26,6 +26,10 @@ interface GameHistory {
   questions: {
     id: string;
     text: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
     correct_answer: string;
   }[];
   scores: {
@@ -184,18 +188,63 @@ export default function HistoryPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {selectedHistory.questions.map((question, index) => (
-                    <div key={question.id} className="border rounded-lg p-4">
-                      <p className="font-medium mb-2">
-                        <span className="text-blue-600">Q{index + 1}:</span>{" "}
-                        {question.text}
-                      </p>
-                      <p className="text-sm text-green-600">
-                        <span className="font-medium">Answer:</span>{" "}
-                        {question.correct_answer}
-                      </p>
-                    </div>
-                  ))}
+                  {selectedHistory.questions.map((question, index) => {
+                    const correctOptionKey = question.correct_answer;
+                    const correctOptionText =
+                      question[
+                        `option_${correctOptionKey.toLowerCase()}` as keyof typeof question
+                      ];
+
+                    return (
+                      <div key={question.id} className="border rounded-lg p-4">
+                        <p className="font-medium mb-3">
+                          <span className="text-blue-600">Q{index + 1}:</span>{" "}
+                          {question.text}
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 mb-2 text-sm">
+                          <div
+                            className={`p-2 rounded ${
+                              correctOptionKey === "A"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            🅰️ {question.option_a}
+                          </div>
+                          <div
+                            className={`p-2 rounded ${
+                              correctOptionKey === "B"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            🅱️ {question.option_b}
+                          </div>
+                          <div
+                            className={`p-2 rounded ${
+                              correctOptionKey === "C"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            🅲 {question.option_c}
+                          </div>
+                          <div
+                            className={`p-2 rounded ${
+                              correctOptionKey === "D"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            🅳 {question.option_d}
+                          </div>
+                        </div>
+                        <p className="text-sm text-green-600 font-medium">
+                          ✓ Correct Answer: {correctOptionKey}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

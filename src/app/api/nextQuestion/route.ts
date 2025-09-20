@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+type Match = { current_question: number };
+type MatchQuestion = {
+  questions: {
+    id: string;
+    text: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
+    correct_answer: string;
+  };
+};
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -22,7 +35,7 @@ export async function POST(request: NextRequest) {
       .from("matches")
       .select("current_question")
       .eq("id", matchId)
-      .single();
+      .single<Match>();
 
     if (matchError || !match) {
       return NextResponse.json({ error: "Match not found" }, { status: 404 });
@@ -73,13 +86,17 @@ export async function POST(request: NextRequest) {
         questions (
           id,
           text,
+          option_a,
+          option_b,
+          option_c,
+          option_d,
           correct_answer
         )
       `
       )
       .eq("match_id", matchId)
       .eq("position", nextQuestionIndex)
-      .single();
+      .single<MatchQuestion>();
 
     if (nextQuestionError || !nextQuestion) {
       return NextResponse.json(
@@ -91,6 +108,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       nextQuestionId: nextQuestion.questions.id,
       questionText: nextQuestion.questions.text,
+      options: {
+        A: nextQuestion.questions.option_a,
+        B: nextQuestion.questions.option_b,
+        C: nextQuestion.questions.option_c,
+        D: nextQuestion.questions.option_d,
+      },
       questionIndex: nextQuestionIndex,
     });
   } catch (error) {

@@ -109,7 +109,7 @@ export default function LobbyPage() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push(`/match/${data.matchId}`);
+        router.push(`/match/${data.matchId}/lobby`);
       } else {
         setMessage(data.error || "Failed to create match");
       }
@@ -136,7 +136,7 @@ export default function LobbyPage() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push(`/match/${matchId}`);
+        router.push(`/match/${matchId}/lobby`);
       } else {
         setMessage(data.error || "Failed to join match");
       }

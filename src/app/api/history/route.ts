@@ -1,5 +1,4 @@
-import dbConnect from "@/lib/dbconnect";
-import { GameHistory } from "@/schema/GameHistory";
+import dbConnect, { GameHistory } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {

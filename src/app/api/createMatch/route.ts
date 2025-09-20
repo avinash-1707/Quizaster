@@ -17,10 +17,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new match
+    // Create new match with host
     const { data: match, error: matchError } = await supabase
       .from("matches")
-      .insert({ current_question: 0 })
+      .insert({
+        current_question: 0,
+        host_id: userId,
+        status: "waiting",
+      })
       .select()
       .single();
 
