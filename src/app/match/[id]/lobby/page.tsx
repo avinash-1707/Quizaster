@@ -142,6 +142,8 @@ export default function PreGameLobbyPage() {
 
       if (playersError) throw playersError;
 
+      console.log(playersData);
+
       const formattedPlayers =
         playersData?.map((player) => ({
           user_id: player.user_id,
