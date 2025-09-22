@@ -91,6 +91,12 @@ export default function PreGameLobbyPage() {
     setUser(session.user);
   };
 
+  useEffect(() => {
+    if (user && matchId) {
+      fetchMatchData();
+    }
+  }, [user, matchId]);
+
   const fetchMatchData = async () => {
     try {
       const { data: matchData, error: matchError } = await supabase
