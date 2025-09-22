@@ -138,6 +138,80 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if this was the last question and if match should be completed
+    const { data: currentMatch, error: matchError } = await supabase
+      .from("matches")
+      .select("current_question, status")
+      .eq("id", matchId)
+      .single();
+
+    if (matchError) {
+      console.error("Error fetching match:", matchError);
+      return NextResponse.json(
+        { error: "Failed to fetch match data" },
+        { status: 500 }
+      );
+    }
+
+    // Get total questions count
+    const { data: totalQuestions, error: countError } = await supabase
+      .from("match_questions")
+      .select("id")
+      .eq("match_id", matchId);
+
+    if (countError) {
+      console.error("Error counting questions:", countError);
+      return NextResponse.json(
+        { error: "Failed to count questions" },
+        { status: 500 }
+      );
+    }
+
+    const isLastQuestion =
+      currentMatch &&
+      currentMatch.current_question + 1 >= (totalQuestions?.length || 0);
+
+    if (isLastQuestion && currentMatch.status !== "completed") {
+      try {
+        // Mark match as completed in Supabase
+        await supabase
+          .from("matches")
+          .update({ status: "completed" })
+          .eq("id", matchId);
+
+        // Call endMatch API to save to MongoDB
+        const endMatchResponse = await fetch(
+          `${
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+          }/api/endMatch`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matchId }),
+          }
+        );
+
+        if (!endMatchResponse.ok) {
+          console.error("Failed to end match:", await endMatchResponse.text());
+        }
+
+        console.log("Match completed and saved to MongoDB");
+      } catch (error) {
+        console.error("Error completing match:", error);
+        // Don't fail the request if match completion fails
+      }
+
+      return NextResponse.json({
+        correct: isCorrect,
+        first: isFirst,
+        correctAnswer: question.correct_answer,
+        correctAnswerText: correctAnswerText,
+        pointsAwarded: pointsAwarded,
+        streakBonus: streakBonus > 0 ? streakBonus : null,
+        matchCompleted: true, // Indicate that the match is completed
+      });
+    }
+
     return NextResponse.json({
       correct: isCorrect,
       first: isFirst,
@@ -145,6 +219,7 @@ export async function POST(request: NextRequest) {
       correctAnswerText: correctAnswerText,
       pointsAwarded: pointsAwarded,
       streakBonus: streakBonus > 0 ? streakBonus : null,
+      matchCompleted: false,
     });
   } catch (error) {
     console.error("Unexpected error:", error);

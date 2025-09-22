@@ -36,6 +36,7 @@ interface Score {
 interface Match {
   id: string;
   current_question: number;
+  status?: string; // Add status field to track match state
 }
 
 export default function MatchPage() {
@@ -143,7 +144,14 @@ export default function MatchPage() {
           table: "matches",
           filter: `id=eq.${matchId}`,
         },
-        () => {
+        (payload) => {
+          // Check if match is completed
+          if (payload.new.status === "completed") {
+            // Redirect all users to results page
+            router.push(`/match/${matchId}/results`);
+            return;
+          }
+
           fetchMatchData(sessionUserId);
           resetQuestionState();
         }
@@ -154,7 +162,7 @@ export default function MatchPage() {
       supabase.removeChannel(scoresChannel);
       supabase.removeChannel(matchChannel);
     };
-  }, [matchId, resetQuestionState]);
+  }, [matchId, resetQuestionState, router]);
 
   // Timer effect with proper cleanup
   useEffect(() => {
@@ -241,13 +249,19 @@ export default function MatchPage() {
       // Get match details
       const { data: matchData, error: matchError } = await supabase
         .from("matches")
-        .select("id, current_question, host_id")
+        .select("id, current_question, host_id, status")
         .eq("id", matchId)
         .single();
 
       if (matchError) throw matchError;
-      setMatch(matchData);
 
+      // Check if match is completed
+      if (matchData.status === "completed") {
+        router.push(`/match/${matchId}/results`);
+        return;
+      }
+
+      setMatch(matchData);
       setIsHost(matchData.host_id === userId);
 
       // Get total questions count
@@ -287,8 +301,14 @@ export default function MatchPage() {
         //@ts-ignore
         setCurrentQuestion(questionData.questions as Question);
       } else {
-        // Match completed
-        router.push(`/match/${matchId}/results`);
+        // No more questions - match completed
+        // Only host should trigger match completion
+        if (matchData.host_id === userId) {
+          await completeMatch();
+        } else {
+          // Non-host users wait for match completion signal
+          setMessage("Match completed! Waiting for results...");
+        }
       }
 
       await fetchScores();
@@ -359,6 +379,19 @@ export default function MatchPage() {
         setShowCorrectAnswer(true);
         setCorrectAnswer(data.correctAnswer);
 
+        // Check if this was the last question and match is completed
+        if (data.matchCompleted) {
+          // Show completion message
+          setMessage("🎉 Match completed! Redirecting to results...");
+
+          // Redirect after a short delay to show the message
+          setTimeout(() => {
+            router.push(`/match/${matchId}/results`);
+          }, 2000);
+
+          return; // Exit early since match is done
+        }
+
         // Play sound effects
         try {
           if (data.correct) {
@@ -411,6 +444,29 @@ export default function MatchPage() {
     }
   };
 
+  const completeMatch = async () => {
+    try {
+      // End match and save to MongoDB
+      const response = await fetch("/api/endMatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId }),
+      });
+
+      if (response.ok) {
+        // Update match status in Supabase to trigger real-time update for all users
+        await supabase
+          .from("matches")
+          .update({ status: "completed" })
+          .eq("id", matchId);
+
+        router.push(`/match/${matchId}/results`);
+      }
+    } catch (error) {
+      console.error("Error completing match:", error);
+    }
+  };
+
   const nextQuestion = async () => {
     if (!isHost) return;
 
@@ -424,14 +480,7 @@ export default function MatchPage() {
       const data = await response.json();
 
       if (data.matchCompleted) {
-        // End match and save to MongoDB
-        await fetch("/api/endMatch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ matchId }),
-        });
-
-        router.push(`/match/${matchId}/results`);
+        await completeMatch();
       }
     } catch (error) {
       console.error("Error moving to next question:", error);
