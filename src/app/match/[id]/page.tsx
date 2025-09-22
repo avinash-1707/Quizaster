@@ -105,8 +105,18 @@ export default function MatchPage() {
   useEffect(() => {
     if (!matchId) return;
 
-    checkUser();
-    fetchMatchData();
+    let sessionUserId: string = "";
+
+    const initializeMatch = async () => {
+      const sessionUser = await checkUser();
+      if (sessionUser) {
+        // Pass the user to fetchMatchData
+        fetchMatchData(sessionUser.id);
+        sessionUserId = sessionUser.id;
+      }
+    };
+
+    initializeMatch();
 
     // Set up real-time subscriptions
     const scoresChannel = supabase
@@ -134,7 +144,7 @@ export default function MatchPage() {
           filter: `id=eq.${matchId}`,
         },
         () => {
-          fetchMatchData();
+          fetchMatchData(sessionUserId);
           resetQuestionState();
         }
       )
@@ -223,9 +233,10 @@ export default function MatchPage() {
       return;
     }
     setUser(session.user);
+    return session.user;
   };
 
-  const fetchMatchData = async () => {
+  const fetchMatchData = async (userId: string) => {
     try {
       // Get match details
       const { data: matchData, error: matchError } = await supabase
@@ -237,7 +248,7 @@ export default function MatchPage() {
       if (matchError) throw matchError;
       setMatch(matchData);
 
-      setIsHost(matchData.host_id === user.id);
+      setIsHost(matchData.host_id === userId);
 
       // Get total questions count
       const { data: questionsCount, error: countError } = await supabase
