@@ -230,12 +230,14 @@ export default function MatchPage() {
       // Get match details
       const { data: matchData, error: matchError } = await supabase
         .from("matches")
-        .select("id, current_question")
+        .select("id, current_question, host_id")
         .eq("id", matchId)
         .single();
 
       if (matchError) throw matchError;
       setMatch(matchData);
+
+      setIsHost(matchData.host_id === user.id);
 
       // Get total questions count
       const { data: questionsCount, error: countError } = await supabase
@@ -270,8 +272,9 @@ export default function MatchPage() {
         throw questionError;
       }
 
-      if (questionData?.questions && questionData.questions.length > 0) {
-        setCurrentQuestion(questionData.questions[0] as Question);
+      if (questionData?.questions) {
+        //@ts-ignore
+        setCurrentQuestion(questionData.questions as Question);
       } else {
         // Match completed
         router.push(`/match/${matchId}/results`);
@@ -313,11 +316,6 @@ export default function MatchPage() {
       }));
 
       setScores(mappedScores);
-
-      // Check if current user is host (first to join)
-      if (mappedScores.length > 0 && user) {
-        setIsHost(mappedScores[0].user_id === user.id);
-      }
     } catch (error) {
       console.error("Error fetching scores:", error);
     }
