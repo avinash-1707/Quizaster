@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { GamepadIcon, Users, Zap } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,9 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
-import { GamepadIcon, Users, Zap } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -23,6 +23,7 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Email/Password auth
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -47,6 +48,25 @@ export default function LoginPage() {
     } catch (error: any) {
       setMessage(error.message);
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Google OAuth login
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setMessage("");
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/lobby`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setMessage(error.message);
       setIsLoading(false);
     }
   };
@@ -116,7 +136,8 @@ export default function LoginPage() {
               {message && (
                 <div
                   className={`text-sm ${
-                    message.includes("error") || message.includes("Invalid")
+                    message.toLowerCase().includes("error") ||
+                    message.toLowerCase().includes("invalid")
                       ? "text-red-600"
                       : "text-green-600"
                   }`}
@@ -133,7 +154,7 @@ export default function LoginPage() {
                   : "Sign In"}
               </Button>
 
-              <div className="text-center">
+              <div className="text-center mt-2">
                 <Button
                   type="button"
                   variant="link"
@@ -148,6 +169,23 @@ export default function LoginPage() {
                 </Button>
               </div>
             </form>
+
+            {/* OR Divider */}
+            <div className="flex items-center my-4">
+              <hr className="flex-grow border-gray-300" />
+              <span className="px-2 text-gray-400">OR</span>
+              <hr className="flex-grow border-gray-300" />
+            </div>
+
+            {/* Google Login Button */}
+            <Button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+              disabled={isLoading}
+            >
+              Sign in with Google
+            </Button>
           </CardContent>
         </Card>
 
