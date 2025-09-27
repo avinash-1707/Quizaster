@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GamepadIcon, Users, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -23,6 +23,43 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const checkProfileAndRedirect = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // ignore "no rows found"
+        console.error("Error checking profile:", error);
+      }
+
+      if (!profile) {
+        router.push("/create-profile"); // redirect to create profile
+      } else {
+        router.push("/lobby"); // profile exists, go to lobby
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user?.id) {
+          await checkProfileAndRedirect(session.user.id);
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
   // Email/Password auth
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +75,15 @@ export default function LoginPage() {
         if (error) throw error;
         setMessage("Check your email for the confirmation link!");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        router.push("/lobby");
+        if (session?.user.id) await checkProfileAndRedirect(session.user.id);
       }
     } catch (error: any) {
       setMessage(error.message);
@@ -61,7 +101,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/lobby`,
+          redirectTo: `${window.location.origin}`,
         },
       });
       if (error) throw error;
@@ -70,6 +110,20 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user?.id) {
+          await checkProfileAndRedirect(session.user.id);
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
